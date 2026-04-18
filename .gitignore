@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+venv/
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Phase 2+ (not created yet)
+*.pkl
+*.joblib
+*.model
+data/
+logs/
+
+# OS
+.DS_Store
+Thumbs.db

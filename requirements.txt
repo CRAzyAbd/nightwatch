@@ -1,0 +1,4 @@
+# NIGHTWATCH dependencies
+# Phase 1 — core only (no ML yet)
+requests>=2.31.0
+colorama>=0.4.6
