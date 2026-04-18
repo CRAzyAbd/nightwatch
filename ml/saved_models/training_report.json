@@ -1,0 +1,62 @@
+{
+  "feature_names": [
+    "url_length",
+    "query_string_length",
+    "body_length",
+    "param_values_length",
+    "num_params",
+    "num_headers",
+    "special_char_count",
+    "sql_keyword_count",
+    "special_char_ratio",
+    "url_entropy",
+    "body_entropy",
+    "combined_entropy",
+    "has_encoded_chars",
+    "method_is_unusual",
+    "has_script_tag",
+    "has_dotdot",
+    "has_null_byte",
+    "has_jndi",
+    "has_template_expr",
+    "has_file_scheme",
+    "has_private_ip",
+    "has_sqli_comment",
+    "has_union_select",
+    "user_agent_length",
+    "user_agent_is_empty",
+    "user_agent_is_scanner",
+    "content_type_is_xml",
+    "content_type_is_json",
+    "body_looks_like_xml",
+    "body_looks_like_json"
+  ],
+  "models": {
+    "RandomForest": {
+      "f1": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "roc_auc": 1.0,
+      "cv_f1_mean": 1.0,
+      "cv_f1_std": 0.0
+    },
+    "XGBoost": {
+      "f1": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "roc_auc": 1.0,
+      "cv_f1_mean": 1.0,
+      "cv_f1_std": 0.0
+    },
+    "LightGBM": {
+      "f1": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "roc_auc": 1.0,
+      "cv_f1_mean": 1.0,
+      "cv_f1_std": 0.0
+    }
+  },
+  "baseline_prob_mean": 0.5062220249288744,
+  "baseline_prob_std": 0.022696925713580136
+}
