@@ -12,7 +12,11 @@ Endpoints:
   POST /api/blocklist/remove — unblock an IP
   GET  /api/blocklist      — list blocked IPs
 """
-
+from storage.db import (
+    get_recent_logs, get_stats_last_n_days,
+    get_top_attacking_ips, db_block_ip,
+    db_unblock_ip, db_get_blocked_ips, db_check_ip
+)
 from flask import Blueprint, request, jsonify
 from core.engine import analyze, ML_AVAILABLE
 from core.regex_rules import RULES, list_attack_types
@@ -104,9 +108,10 @@ def analyze_request():
     result = analyze(req)
     record_stats(result)
 
-    # Don't send back the full feature vector in API responses (noisy)
-    result.pop("features", None)
+    from storage.db import log_request
+    log_request(result, req)
 
+    result.pop("features", None)
     return jsonify(result), 200
 
 
@@ -176,6 +181,7 @@ def add_to_blocklist():
         return jsonify({"error": "ip field required"}), 400
 
     block_ip(ip, reason)
+    db_block_ip(ip, reason=reason, auto=False)
     return jsonify({"message": f"IP {ip} blocked", "reason": reason})
 
 
@@ -189,4 +195,32 @@ def remove_from_blocklist():
         return jsonify({"error": "ip field required"}), 400
 
     unblock_ip(ip)
+    db_unblock_ip(ip)
     return jsonify({"message": f"IP {ip} unblocked"})
+
+@api_bp.route("/logs", methods=["GET"])
+def get_logs():
+    """
+    Return recent request logs from the database.
+    Query params:
+      ?limit=100       — max rows (default 100)
+      ?verdict=BLOCK   — filter by verdict
+    """
+    limit   = min(int(request.args.get("limit", 100)), 1000)
+    verdict = request.args.get("verdict")
+    logs    = get_recent_logs(limit=limit, verdict=verdict)
+    return jsonify({"logs": logs, "count": len(logs)})
+
+
+@api_bp.route("/logs/attackers", methods=["GET"])
+def top_attackers():
+    """Return the IPs with the most blocked requests."""
+    limit = int(request.args.get("limit", 10))
+    return jsonify({"top_attackers": get_top_attacking_ips(limit=limit)})
+
+
+@api_bp.route("/stats/daily", methods=["GET"])
+def daily_stats():
+    """Return daily stats for the last N days."""
+    days = int(request.args.get("days", 7))
+    return jsonify({"daily_stats": get_stats_last_n_days(n=days)})

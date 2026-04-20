@@ -31,6 +31,7 @@ from dotenv import load_dotenv
 from core.engine import analyze
 from core.threat_intel import check_ip, block_ip
 from api.routes import record_stats
+from storage.db import log_request, db_block_ip, db_check_ip
 
 load_dotenv()
 
@@ -209,6 +210,7 @@ def proxy(path):
     result  = analyze(waf_request)
     verdict = result["verdict"]
     record_stats(result)
+    log_request(result, waf_request)   # Phase 4: persist to SQLite
 
     elapsed = round((time.time() - start_time) * 1000, 2)
 
@@ -224,6 +226,10 @@ def proxy(path):
         critical_rules = [r for r in result.get("matched_rules", []) if r["severity"] == "CRITICAL"]
         if critical_rules:
             block_ip(ip, reason=f"auto: {critical_rules[0]['attack_type']}")
+            db_block_ip(ip,
+                        reason=f"auto: {critical_rules[0]['attack_type']}",
+                        ttl_minutes=60,   # auto-blocks expire after 1 hour
+                        auto=True)
 
         return _block_response(result, ip)
 
