@@ -13,6 +13,7 @@ Endpoints:
   POST /api/blocklist/remove — unblock an IP
   GET  /api/blocklist      — list blocked IPs
 """
+from flask import send_from_directory
 from storage.db import (
     get_recent_logs, get_stats_last_n_days,
     get_top_attacking_ips, db_block_ip,
@@ -246,4 +247,31 @@ def rate_limit_status():
         "window_seconds": int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60")),
         "block_ttl_min":  int(os.getenv("RATE_LIMIT_BLOCK_TTL_MINUTES", "60")),
         "abuseipdb_enabled": os.getenv("ABUSEIPDB_ENABLED", "false").lower() == "true",
+    })
+
+@api_bp.route("/dashboard/data", methods=["GET"])
+def dashboard_data():
+    """
+    Single endpoint that returns everything the dashboard needs in one call.
+    Reduces the number of requests the frontend has to make.
+    """
+    import time as _time
+    total = max(_stats["total_requests"], 1)
+
+    return jsonify({
+        "stats": {
+            "total_requests": _stats["total_requests"],
+            "blocked":        _stats["blocked"],
+            "monitored":      _stats["monitored"],
+            "allowed":        _stats["allowed"],
+            "block_rate":     round(_stats["blocked"] / total * 100, 2),
+            "uptime_sec":     round(_time.time() - _stats["start_time"], 1),
+            "ml_available":   ML_AVAILABLE,
+        },
+        "attack_types":   _stats["attack_types"],
+        "recent_logs":    get_recent_logs(limit=50),
+        "top_attackers":  get_top_attacking_ips(limit=10),
+        "blocked_ips":    get_blocked_ips(),
+        "daily_stats":    get_stats_last_n_days(n=7),
+        "rules_count":    len(RULES),
     })
