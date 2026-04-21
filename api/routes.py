@@ -1,3 +1,4 @@
+import os
 """
 api/routes.py
 NIGHTWATCH Analysis API Routes
@@ -224,3 +225,25 @@ def daily_stats():
     """Return daily stats for the last N days."""
     days = int(request.args.get("days", 7))
     return jsonify({"daily_stats": get_stats_last_n_days(n=days)})
+
+@api_bp.route("/threat/check/<ip>", methods=["GET"])
+def threat_check(ip):
+    """
+    On-demand threat check for a specific IP.
+    Queries local blocklist + AbuseIPDB.
+    Useful for investigating suspicious IPs from the logs.
+    """
+    from core.threat_intel import check_ip as ti_check
+    result = ti_check(ip)
+    return jsonify(result)
+
+
+@api_bp.route("/threat/ratelimit", methods=["GET"])
+def rate_limit_status():
+    """Show current rate limit config."""
+    return jsonify({
+        "max_requests":   int(os.getenv("RATE_LIMIT_REQUESTS", "30")),
+        "window_seconds": int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60")),
+        "block_ttl_min":  int(os.getenv("RATE_LIMIT_BLOCK_TTL_MINUTES", "60")),
+        "abuseipdb_enabled": os.getenv("ABUSEIPDB_ENABLED", "false").lower() == "true",
+    })
