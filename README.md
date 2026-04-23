@@ -165,8 +165,3 @@ Boolean features   has_encoded_chars, has_script_tag, has_dotdot, has_null_byte,
                    body_looks_like_xml, body_looks_like_json
 </pre>
 
-> **Note:** Perfect scores reflect a clean synthetic dataset where attack and benign
-> samples are clearly separable by the extracted features. Real-world performance
-> will vary — the regex layer handles known patterns precisely, while ML catches
-> obfuscated and novel payloads the rules miss. Retrain periodically with real
-> traffic logs for best results.
