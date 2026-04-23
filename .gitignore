@@ -25,3 +25,12 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Docker
+.docker/
+
+# Database (never commit the live DB)
+nightwatch.db
+
+# Keep models out of git (too large)
+ml/saved_models/*.joblib

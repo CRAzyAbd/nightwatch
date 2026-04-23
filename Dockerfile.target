@@ -1,0 +1,15 @@
+# NIGHTWATCH — Target App Dockerfile
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN pip install flask gunicorn
+
+COPY target_app.py .
+
+RUN useradd -m -u 1000 target && chown -R target:target /app
+USER target
+
+EXPOSE 5001
+
+CMD ["gunicorn", "--workers", "2", "--bind", "0.0.0.0:5001", "target_app:app"]
