@@ -135,17 +135,38 @@ Three models trained on 560+ labeled samples:
 
 Weighted soft voting. Block threshold: combined score ≥ 0.65.
 
-## Compared to ShadowGuard
+## ML Model Performance
 
-| Feature | ShadowGuard | NIGHTWATCH |
-|---------|-------------|------------|
-| Architecture | Monolithic | Modular |
-| ML | Single model | RF+XGB+LGBM ensemble |
-| Attack types | 6 | 10 (adds SSRF, XXE, SSTI, Smuggling) |
-| Storage | In-memory | SQLite persistent |
-| Rate limiting | Mentioned | Sliding-window + TTL |
-| Auth | admin/admin | JWT |
-| Threat intel | None | AbuseIPDB |
-| Drift detection | None | Z-score monitoring |
-| Dashboard | Basic | Real-time with charts |
-| Deploy | Manual | Docker + Nginx |
+Trained on 560 labeled samples (280 attack, 280 benign) generated from the built-in payload library.
+
+<pre>
+Model            F1      Precision   Recall    ROC-AUC   CV F1 (5-fold)
+──────────────────────────────────────────────────────────────────────
+Random Forest    1.000   1.000       1.000     1.000     1.000 ± 0.000
+XGBoost          1.000   1.000       1.000     1.000     1.000 ± 0.000
+LightGBM         1.000   1.000       1.000     1.000     1.000 ± 0.000
+──────────────────────────────────────────────────────────────────────
+Ensemble         Weighted soft vote — RF 30% + XGBoost 35% + LightGBM 35%
+Block threshold  Combined score ≥ 0.65
+</pre>
+
+**Features used (30 total):**
+
+<pre>
+Length features    url_length, query_string_length, body_length, param_values_length
+Count features     num_params, num_headers, special_char_count, sql_keyword_count
+Ratio features     special_char_ratio
+Entropy features   url_entropy, body_entropy, combined_entropy
+Boolean features   has_encoded_chars, has_script_tag, has_dotdot, has_null_byte,
+                   has_jndi, has_template_expr, has_file_scheme, has_private_ip,
+                   has_sqli_comment, has_union_select, method_is_unusual,
+                   user_agent_is_empty, user_agent_is_scanner,
+                   content_type_is_xml, content_type_is_json,
+                   body_looks_like_xml, body_looks_like_json
+</pre>
+
+> **Note:** Perfect scores reflect a clean synthetic dataset where attack and benign
+> samples are clearly separable by the extracted features. Real-world performance
+> will vary — the regex layer handles known patterns precisely, while ML catches
+> obfuscated and novel payloads the rules miss. Retrain periodically with real
+> traffic logs for best results.
