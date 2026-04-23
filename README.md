@@ -1,7 +1,20 @@
-# 🦉 NIGHTWATCH — Modular ML-Powered Web Application Firewall
+# 🦉 NIGHTWATCH
 
-A production-grade WAF built from scratch with a dual-layer detection engine:
-regex rules for known patterns + ML ensemble for novel/obfuscated attacks.
+A modular, production-grade Web Application Firewall with an ML-powered detection engine.
+Built from scratch on Ubuntu — combines regex-based rule matching with an ensemble of
+three machine learning models to detect and block web attacks in real time.
+
+## What it does
+
+Every HTTP request passing through NIGHTWATCH goes through four gates:
+
+1. **IP reputation check** — rate limiting, local blocklist, AbuseIPDB cross-reference
+2. **Regex rule engine** — 30 handcrafted rules covering 10 attack classes
+3. **Feature extraction** — 30 numerical features extracted per request
+4. **ML ensemble** — Random Forest + XGBoost + LightGBM weighted soft vote
+
+If the combined risk score exceeds the threshold, the request is blocked and logged.
+Clean traffic is forwarded transparently to the backend.
 
 ## Architecture
 
@@ -9,159 +22,183 @@ regex rules for known patterns + ML ensemble for novel/obfuscated attacks.
 nightwatch/
 │
 ├── core/                        Detection Engine
-│   ├── engine.py                Main orchestrator — ties regex + ML together
-│   ├── regex_rules.py           30 custom rules across 10 attack types
-│   ├── feature_extractor.py     Extracts 30 numerical features per request
-│   └── threat_intel.py          Rate limiter + IP blocklist + AbuseIPDB
+│   ├── engine.py                Orchestrator — combines regex + ML into a risk score
+│   ├── regex_rules.py           30 rules across 10 attack types
+│   ├── feature_extractor.py     Extracts 30 numerical features from each request
+│   └── threat_intel.py          Rate limiter, IP blocklist, AbuseIPDB integration
 │
-├── ml/                          Machine Learning Layer
-│   ├── dataset_builder.py       Builds labeled CSV from 280+ attack payloads
-│   ├── trainer.py               Trains RF + XGBoost + LightGBM
-│   ├── models.py                Weighted soft voting ensemble (inference)
-│   ├── drift_detector.py        Monitors model confidence over time
-│   └── saved_models/            Trained .joblib model files
+├── ml/                          Machine Learning
+│   ├── dataset_builder.py       Generates labeled training data from payload library
+│   ├── trainer.py               Trains and evaluates all three models
+│   ├── models.py                Ensemble inference — weighted soft voting
+│   ├── drift_detector.py        Monitors prediction confidence over time
+│   └── saved_models/            Serialized .joblib model files
 │
 ├── api/                         Flask API
-│   ├── routes.py                All /api/* endpoints
-│   ├── proxy.py                 Reverse proxy — intercepts all HTTP traffic
-│   └── auth.py                  JWT login, token refresh, route protection
+│   ├── routes.py                REST endpoints — stats, logs, rules, blocklist
+│   ├── proxy.py                 Reverse proxy — intercepts and inspects all traffic
+│   └── auth.py                  JWT authentication and route protection
 │
-├── storage/                     Persistence Layer
-│   └── db.py                    SQLite: logs, blocklist, daily stats
+├── storage/                     Persistence
+│   └── db.py                    SQLite — request logs, blocklist, daily stats
 │
-├── dashboard/                   Web Dashboard
-│   └── index.html               Real-time UI with charts, logs, blocklist
+├── dashboard/                   Web Interface
+│   └── index.html               Real-time dashboard — charts, logs, blocklist
 │
-├── nginx/                       Production Web Server
-│   └── nginx.conf               Rate limiting, security headers, proxy
+├── nginx/                       Production Server
+│   └── nginx.conf               Network rate limiting, headers, upstream proxy
 │
-├── tests/                       Test Suites (one per phase)
-│   ├── test_phase1.py
-│   ├── test_phase2.py
-│   ├── test_phase3.py
-│   ├── test_phase4.py
-│   ├── test_phase5.py
-│   └── test_phase8.py
+├── tests/                       Test suites — one file per phase
 │
-├── app.py                       Flask app factory + dashboard route
-├── target_app.py                Deliberately vulnerable test target
+├── app.py                       Flask application factory
+├── target_app.py                Vulnerable test application
 ├── wsgi.py                      Gunicorn entry point
-├── Dockerfile                   WAF container
-├── Dockerfile.target            Target app container
-├── docker-compose.yml           Orchestrates all 3 containers
-└── requirements.txt             All Python dependencies
+├── Dockerfile
+├── Dockerfile.target
+└── docker-compose.yml
 </pre>
 
 ## Traffic Flow
 
 <pre>
-Internet
+Incoming Request
     │
     ▼
-Nginx :80          network rate limit, security headers, block scanners
+Nginx :80              Network-level rate limit + security headers
     │
     ▼
-Gunicorn :8000     production WSGI server (4 workers)
+Gunicorn :8000         4 worker processes
     │
     ▼
-NIGHTWATCH Engine
-    ├── IP check   rate limit + local blocklist + AbuseIPDB
-    ├── Regex      30 rules, instant block on CRITICAL match
-    ├── Features   30 numerical features extracted
-    └── ML         RF + XGBoost + LightGBM weighted soft vote
+threat_intel.py        Rate limit check → blocklist check → AbuseIPDB
     │
-    ├── BLOCK  ──► 403 response (never reaches backend)
+    ▼
+engine.py
+    ├── regex_rules.py     Pattern match against 30 rules
+    ├── feature_extractor  Build 30-dimensional feature vector
+    └── ml/models.py       RF + XGBoost + LightGBM → weighted probability
     │
-    └── ALLOW  ──► Target App :5001 (your protected backend)
+    ├── score ≥ 0.65  ──►  Block  — 403 response + log + auto-block IP
+    │
+    └── score < 0.65  ──►  Forward to backend :5001
 </pre>
 
-## Attack Classes Detected
+## Attack Classes
 
-| Type | Rules | Notes |
-|------|-------|-------|
-| SQLi | 5 | UNION, boolean, time-based, schema enum |
-| XSS | 5 | script tags, event handlers, JS URIs |
-| Path Traversal | 2 | ../ sequences, sensitive files |
-| CMDi | 3 | Unix/Windows shell metacharacters |
-| Shellshock | 1 | CVE-2014-6271 |
-| Log4Shell | 2 | CVE-2021-44228, obfuscated variants |
-| SSRF | 3 | Private IPs, cloud metadata, URI schemes |
-| XXE | 3 | DOCTYPE, SYSTEM/PUBLIC, blind XXE |
-| SSTI | 4 | Jinja2, Python dunder, Java templates |
-| HTTP Smuggling | 2 | CL.TE, TE.CL conflicts |
+<pre>
+Class              Rules   Coverage
+───────────────────────────────────────────────────────────────────
+SQL Injection          5   UNION, boolean blind, time-based, schema enum, comments
+XSS                    5   script tags, event handlers, JS URIs, media tags, CSS
+Path Traversal         2   ../ sequences, sensitive file targeting
+Command Injection      3   Unix/Windows shell metacharacters, subshell substitution
+Shellshock             1   CVE-2014-6271 bash function definition in headers
+Log4Shell              2   CVE-2021-44228 JNDI lookup + obfuscated nested variants
+SSRF                   3   Private IP ranges, cloud metadata endpoints, URI schemes
+XXE                    3   DOCTYPE injection, SYSTEM/PUBLIC entities, blind XXE
+SSTI                   4   Jinja2/Twig, Python dunder access, Java template engines
+HTTP Smuggling         2   CL.TE and TE.CL conflicts, obfuscated Transfer-Encoding
+</pre>
+
+## ML Model Performance
+
+Trained on 560 labeled samples — 280 attack payloads across all 10 classes,
+280 synthetically generated benign requests.
+
+<pre>
+Model            F1      Precision   Recall    ROC-AUC   CV F1 (5-fold)
+───────────────────────────────────────────────────────────────────────
+Random Forest    1.000   1.000       1.000     1.000     1.000 ± 0.000
+XGBoost          1.000   1.000       1.000     1.000     1.000 ± 0.000
+LightGBM         1.000   1.000       1.000     1.000     1.000 ± 0.000
+───────────────────────────────────────────────────────────────────────
+Ensemble         RF × 0.30 + XGBoost × 0.35 + LightGBM × 0.35
+Block threshold  Combined score ≥ 0.65
+</pre>
+
+The 30 input features cover request length, parameter counts, special character
+ratios, Shannon entropy of URL and body, boolean indicators for known-bad patterns
+(JNDI, template expressions, dotdot sequences), and user-agent classification.
+
+> Perfect scores are expected on this clean synthetic dataset. The regex layer
+> handles known patterns with precision. The ML layer targets obfuscated and
+> novel payloads that rules miss. Retrain with real traffic logs to improve
+> real-world generalisation.
+
+## API Reference
+
+<pre>
+Method   Endpoint                  Auth   Description
+────────────────────────────────────────────────────────────────────
+POST     /auth/login               No     Get JWT token
+GET      /auth/status              No     Validate token
+POST     /auth/refresh             Yes    Refresh token
+POST     /api/analyze              No     Analyze a request dict
+GET      /api/health               No     Health check
+GET      /api/stats                No     Runtime statistics
+GET      /api/rules                No     List all WAF rules
+GET      /api/logs                 Yes    Request logs (filterable)
+GET      /api/logs/attackers       Yes    Top attacking IPs
+GET      /api/stats/daily          No     Daily stats — last 7 days
+POST     /api/blocklist/add        Yes    Block an IP
+POST     /api/blocklist/remove     Yes    Unblock an IP
+GET      /api/blocklist            No     List blocked IPs
+GET      /api/drift                No     ML drift status
+GET      /api/threat/check/<ip>    No     IP reputation check
+GET      /api/dashboard/data       No     All dashboard data in one call
+</pre>
 
 ## Quick Start
 
-### Development
+**Development**
+
 ```bash
+git clone https://github.com/CRAzyAbd/nightwatch.git
+cd nightwatch
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-python ml/dataset_builder.py && python ml/trainer.py
+python ml/dataset_builder.py
+python ml/trainer.py
+cp .env.example .env   # edit with your settings
 python target_app.py &
 python app.py
 ```
 
-### Production (Docker)
+Open http://localhost:5000/ui
+
+**Production**
+
 ```bash
 docker-compose up --build
 ```
 
-Open http://localhost/ui — login with admin / nightwatch2024
+Open http://localhost/ui — default login: `admin` / `nightwatch2024`
+Change credentials in `.env` before deploying publicly.
 
-## API Endpoints
+## Configuration
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | /auth/login | No | Get JWT token |
-| GET | /auth/status | No | Check token validity |
-| POST | /api/analyze | No | Analyze a request |
-| GET | /api/health | No | Health check |
-| GET | /api/stats | No | Runtime statistics |
-| GET | /api/rules | No | List all WAF rules |
-| GET | /api/logs | Yes | Request logs |
-| GET | /api/logs/attackers | Yes | Top attacking IPs |
-| GET | /api/stats/daily | No | Daily stats (7 days) |
-| POST | /api/blocklist/add | Yes | Block an IP |
-| POST | /api/blocklist/remove | Yes | Unblock an IP |
-| GET | /api/drift | No | ML drift status |
-| GET | /api/threat/check/<ip> | No | Check IP reputation |
+All settings are controlled via `.env`:
 
-## ML Ensemble
 
-Three models trained on 560+ labeled samples:
-- **Random Forest** (30% weight) — stable, interpretable
-- **XGBoost** (35% weight) — strong on tabular data
-- **LightGBM** (35% weight) — fast, handles imbalanced classes
+TARGET_URL                    Backend app URL (default: http://127.0.0.1:5001)
+API_SECRET_KEY                Flask secret key
+JWT_SECRET_KEY                JWT signing key
+ADMIN_USERNAME                Dashboard login username
+ADMIN_PASSWORD                Dashboard login password
+ABUSEIPDB_API_KEY             AbuseIPDB API key (free tier: 1000 checks/day)
+ABUSEIPDB_ENABLED             true / false
+ABUSEIPDB_BLOCK_THRESHOLD     Score 0–100 above which to block (default: 50)
+RATE_LIMIT_REQUESTS           Max requests per window (default: 30)
+RATE_LIMIT_WINDOW_SECONDS     Window size in seconds (default: 60)
+RATE_LIMIT_BLOCK_TTL_MINUTES  How long to auto-block rate violators (default: 60)
 
-Weighted soft voting. Block threshold: combined score ≥ 0.65.
+## Tech Stack
 
-## ML Model Performance
-
-Trained on 560 labeled samples (280 attack, 280 benign) generated from the built-in payload library.
-
-<pre>
-Model            F1      Precision   Recall    ROC-AUC   CV F1 (5-fold)
-──────────────────────────────────────────────────────────────────────
-Random Forest    1.000   1.000       1.000     1.000     1.000 ± 0.000
-XGBoost          1.000   1.000       1.000     1.000     1.000 ± 0.000
-LightGBM         1.000   1.000       1.000     1.000     1.000 ± 0.000
-──────────────────────────────────────────────────────────────────────
-Ensemble         Weighted soft vote — RF 30% + XGBoost 35% + LightGBM 35%
-Block threshold  Combined score ≥ 0.65
-</pre>
-
-**Features used (30 total):**
-
-<pre>
-Length features    url_length, query_string_length, body_length, param_values_length
-Count features     num_params, num_headers, special_char_count, sql_keyword_count
-Ratio features     special_char_ratio
-Entropy features   url_entropy, body_entropy, combined_entropy
-Boolean features   has_encoded_chars, has_script_tag, has_dotdot, has_null_byte,
-                   has_jndi, has_template_expr, has_file_scheme, has_private_ip,
-                   has_sqli_comment, has_union_select, method_is_unusual,
-                   user_agent_is_empty, user_agent_is_scanner,
-                   content_type_is_xml, content_type_is_json,
-                   body_looks_like_xml, body_looks_like_json
-</pre>
-
+- **Python 3.12** — core language
+- **Flask 3** — API and proxy server
+- **scikit-learn / XGBoost / LightGBM** — ML models
+- **SQLAlchemy + SQLite** — persistent storage
+- **Nginx** — production reverse proxy
+- **Gunicorn** — WSGI server
+- **Docker + Compose** — containerised deployment
+- **PyJWT + bcrypt** — authentication
