@@ -4,7 +4,292 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>🦉 NIGHTWATCH — WAF Dashboard</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script>
+// ── Auth ──────────────────────────────────────────────────────────
+let _token = localStorage.getItem('nw_token') || '';
+
+async function doLogin() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn      = document.getElementById('login-btn');
+  const errEl    = document.getElementById('login-error');
+
+  if (!username || !password) {
+    errEl.textContent = 'Please enter username and password';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+  errEl.textContent = '';
+
+  try {
+    const resp = await fetch('/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username, password}),
+    });
+
+    const data = await resp.json();
+
+    if (resp.ok) {
+      _token = data.token;
+      localStorage.setItem('nw_token', _token);
+      document.getElementById('login-page').classList.add('hidden');
+      loadData();
+    } else {
+      errEl.textContent = data.error || 'Login failed';
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+    }
+  } catch (e) {
+    errEl.textContent = 'Connection error';
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+}
+
+// Allow Enter key to submit
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !document.getElementById('login-page').classList.contains('hidden')) {
+    doLogin();
+  }
+});
+
+function authHeaders() {
+  return _token ? {'Authorization': `Bearer ${_token}`} : {};
+}
+
+function handleUnauth() {
+  _token = '';
+  localStorage.removeItem('nw_token');
+  document.getElementById('login-page').classList.remove('hidden');
+}
+
+// ── Chart instances ───────────────────────────────────────────────
+let attackChart = null;
+let dailyChart  = null;
+
+// ── Colors ────────────────────────────────────────────────────────
+const COLORS = [
+  '#f85149','#ffa657','#d29922','#3fb950',
+  '#58a6ff','#bc8cff','#79c0ff','#56d364',
+  '#ff7b72','#e3b341'
+];
+
+// ── Helpers ───────────────────────────────────────────────────────
+function fmt(n) { return n?.toLocaleString() ?? '—'; }
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+function fmtUptime(sec) {
+  if (!sec) return '—';
+  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = Math.floor(sec%60);
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+function verdictClass(v) {
+  if (v==='BLOCK')   return 'verdict-block';
+  if (v==='MONITOR') return 'verdict-monitor';
+  return 'verdict-allow';
+}
+
+function scoreColor(s) {
+  if (s>=0.65) return '#f85149';
+  if (s>=0.30) return '#d29922';
+  return '#3fb950';
+}
+
+// ── Load all data ─────────────────────────────────────────────────
+async function loadData() {
+  try {
+    const [dashRes, driftRes] = await Promise.all([
+      fetch('/api/dashboard/data', {headers: authHeaders()}),
+      fetch('/api/drift',          {headers: authHeaders()}),
+    ]);
+
+    if (dashRes.status === 401) { handleUnauth(); return; }
+
+    const dash  = await dashRes.json();
+    const drift = await driftRes.json();
+
+    renderStats(dash.stats, dash.rules_count, dash.blocked_ips?.length ?? 0);
+    renderAttackChart(dash.attack_types);
+    renderDailyChart(dash.daily_stats);
+    renderLogs(dash.recent_logs);
+    renderTopAttackers(dash.top_attackers);
+    renderBlocklist(dash.blocked_ips);
+    renderDrift(drift);
+
+    document.getElementById('last-update').textContent =
+      'Updated ' + new Date().toLocaleTimeString();
+    document.getElementById('loading-overlay').classList.add('hidden');
+
+  } catch (err) {
+    console.error('Dashboard load error:', err);
+    document.getElementById('last-update').textContent = '⚠ Connection error';
+  }
+}
+
+// ── Stats cards ───────────────────────────────────────────────────
+function renderStats(stats, rulesCount, blockedIPs) {
+  document.getElementById('stat-total').textContent     = fmt(stats.total_requests);
+  document.getElementById('stat-blocked').textContent   = fmt(stats.blocked);
+  document.getElementById('stat-monitored').textContent = fmt(stats.monitored);
+  document.getElementById('stat-allowed').textContent   = fmt(stats.allowed);
+  document.getElementById('stat-rules').textContent     = rulesCount ?? '—';
+  document.getElementById('stat-blocked-ips').textContent = blockedIPs;
+  document.getElementById('stat-uptime').textContent    = 'uptime: ' + fmtUptime(stats.uptime_sec);
+  document.getElementById('stat-block-rate').textContent = `block rate: ${stats.block_rate ?? 0}%`;
+
+  const mlBadge = document.getElementById('ml-badge');
+  mlBadge.innerHTML = stats.ml_available
+    ? '<span class="badge green"><span class="dot pulse"></span>ML Active</span>'
+    : '<span class="badge red"><span class="dot"></span>ML Offline</span>';
+}
+
+// ── Attack types doughnut ─────────────────────────────────────────
+function renderAttackChart(attackTypes) {
+  const labels = Object.keys(attackTypes);
+  const values = Object.values(attackTypes);
+  if (attackChart) attackChart.destroy();
+  if (!labels.length) {
+    document.getElementById('chart-attacks').closest('.chart-wrap').innerHTML =
+      '<div class="empty" style="padding-top:60px">No attacks detected yet</div>';
+    return;
+  }
+  const ctx = document.getElementById('chart-attacks').getContext('2d');
+  attackChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: COLORS.slice(0,labels.length), borderColor:'#161b22', borderWidth:2 }] },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'right', labels:{ color:'#8b949e', font:{size:11}, padding:12, boxWidth:12 } } } }
+  });
+}
+
+// ── Daily traffic bar chart ───────────────────────────────────────
+function renderDailyChart(dailyStats) {
+  if (dailyChart) dailyChart.destroy();
+  if (!dailyStats?.length) {
+    document.getElementById('chart-daily').closest('.chart-wrap').innerHTML =
+      '<div class="empty" style="padding-top:60px">No historical data yet</div>';
+    return;
+  }
+  const ctx = document.getElementById('chart-daily').getContext('2d');
+  dailyChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: dailyStats.map(d=>d.date),
+      datasets: [
+        { label:'Blocked',   data:dailyStats.map(d=>d.blocked),   backgroundColor:'rgba(248,81,73,.7)',  borderRadius:3 },
+        { label:'Monitored', data:dailyStats.map(d=>d.monitored), backgroundColor:'rgba(210,153,34,.7)', borderRadius:3 },
+        { label:'Allowed',   data:dailyStats.map(d=>d.allowed),   backgroundColor:'rgba(63,185,80,.7)',  borderRadius:3 },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      scales: {
+        x:{ stacked:true, ticks:{color:'#8b949e',font:{size:10}}, grid:{color:'#21262d'} },
+        y:{ stacked:true, ticks:{color:'#8b949e',font:{size:10}}, grid:{color:'#21262d'} },
+      },
+      plugins:{ legend:{ labels:{color:'#8b949e',font:{size:11},boxWidth:12} } }
+    }
+  });
+}
+
+// ── Logs table ────────────────────────────────────────────────────
+function renderLogs(logs) {
+  const tbody = document.getElementById('logs-body');
+  document.getElementById('logs-count').textContent = `(${logs?.length ?? 0} shown)`;
+  if (!logs?.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">No requests logged yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = logs.slice(0,50).map(log => {
+    const score     = log.risk_score ?? 0;
+    const fillWidth = Math.round(score * 60);
+    const fillColor = scoreColor(score);
+    const types     = (log.attack_types||[]).join(', ') || '—';
+    return `<tr>
+      <td>${fmtTime(log.timestamp)}</td>
+      <td style="font-family:monospace;color:var(--blue)">${log.ip}</td>
+      <td><span class="badge ${log.method==='GET'?'blue':'yellow'}" style="padding:2px 8px;font-size:11px">${log.method}</span></td>
+      <td title="${log.url}">${log.url}</td>
+      <td class="${verdictClass(log.verdict)}">${log.verdict}</td>
+      <td><div class="score-bar"><div class="bar"><div class="fill" style="width:${fillWidth}px;background:${fillColor}"></div></div><span style="color:${fillColor};font-size:12px">${score.toFixed(2)}</span></div></td>
+      <td style="color:var(--orange)">${types}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Top attackers ─────────────────────────────────────────────────
+function renderTopAttackers(attackers) {
+  const el = document.getElementById('top-attackers-list');
+  if (!attackers?.length) { el.innerHTML='<div class="empty">No blocked requests yet</div>'; return; }
+  el.innerHTML = attackers.map(a=>`
+    <div class="ip-row">
+      <span class="ip-addr">${a.ip}</span>
+      <span class="ip-count">${a.blocked_requests} blocks</span>
+    </div>`).join('');
+}
+
+// ── Blocklist ─────────────────────────────────────────────────────
+function renderBlocklist(ips) {
+  const el = document.getElementById('blocklist-list');
+  if (!ips?.length) { el.innerHTML='<div class="empty">No IPs currently blocked</div>'; return; }
+  el.innerHTML = ips.map(entry=>`
+    <div class="ip-row">
+      <div>
+        <div class="ip-addr">${entry.ip}</div>
+        <div class="ip-reason">${entry.reason??'—'}</div>
+      </div>
+      <span class="badge ${entry.permanent?'red':'yellow'}" style="font-size:11px">
+        ${entry.permanent?'permanent':'TTL'}
+      </span>
+    </div>`).join('');
+}
+
+// ── Drift ─────────────────────────────────────────────────────────
+function renderDrift(drift) {
+  const el = document.getElementById('drift-status');
+  if (!drift||drift.error) { el.innerHTML='<div class="drift-box drift-info">Drift detector unavailable</div>'; return; }
+  const cls = drift.alert ? 'drift-alert' : (drift.status==='insufficient_data'?'drift-info':'drift-ok');
+  el.innerHTML = `<div class="drift-box ${cls}">
+    <strong>${drift.alert?'⚠ DRIFT DETECTED':(drift.status==='insufficient_data'?'ℹ Collecting data':'✓ Model Stable')}</strong>
+    &nbsp;${drift.message??''}
+    ${drift.window_mean!=null?`<br><small style="opacity:.7">Window mean: ${drift.window_mean} | Baseline: ${drift.baseline_mean??'—'} | Z-score: ${drift.z_score??'—'}</small>`:''}
+  </div>`;
+}
+
+// ── Boot ─────────────────────────────────────────────────────────
+if (_token) {
+  // Already have a token — verify it then load
+  fetch('/auth/status', {headers: authHeaders()})
+    .then(r => r.json())
+    .then(data => {
+      if (data.authenticated) {
+        document.getElementById('login-page').classList.add('hidden');
+        loadData();
+        setInterval(loadData, 10000);
+      } else {
+        handleUnauth();
+        document.getElementById('loading-overlay').classList.add('hidden');
+      }
+    })
+    .catch(() => {
+      document.getElementById('login-page').classList.remove('hidden');
+      document.getElementById('loading-overlay').classList.add('hidden');
+    });
+} else {
+  // No token — show login
+  document.getElementById('loading-overlay').classList.add('hidden');
+}
+</script>
   <style>
     :root {
       --bg:       #0d1117;
@@ -252,9 +537,99 @@
       border-top: 1px solid var(--border);
       margin-top: 8px;
     }
+/* ── Login page ── */
+    #login-page {
+      position: fixed; inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    #login-page.hidden { display: none; }
+
+    .login-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 40px;
+      width: 360px;
+    }
+    .login-box h2 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .login-box p {
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+      margin-bottom: 28px;
+    }
+    .form-group { margin-bottom: 16px; }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .form-group input:focus { border-color: var(--blue); }
+    .btn-login {
+      width: 100%;
+      padding: 11px;
+      background: var(--blue);
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity .2s;
+    }
+    .btn-login:hover { opacity: .85; }
+    .btn-login:disabled { opacity: .5; cursor: not-allowed; }
+    #login-error {
+      color: var(--red);
+      font-size: 12px;
+      text-align: center;
+      margin-top: 12px;
+      min-height: 18px;
+    }
   </style>
 </head>
 <body>
+<!-- Login page -->
+<div id="login-page">
+  <div class="login-box">
+    <h2>🦉 NIGHTWATCH</h2>
+    <p>WAF Dashboard — Sign in to continue</p>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="login-username" placeholder="admin" autocomplete="username"/>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <button class="btn-login" id="login-btn" onclick="doLogin()">Sign In</button>
+    <div id="login-error"></div>
+  </div>
+</div>
 
 <!-- Loading overlay -->
 <div id="loading-overlay">

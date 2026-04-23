@@ -13,6 +13,7 @@ Endpoints:
   POST /api/blocklist/remove — unblock an IP
   GET  /api/blocklist      — list blocked IPs
 """
+from api.auth import jwt_required
 from flask import send_from_directory
 from storage.db import (
     get_recent_logs, get_stats_last_n_days,
@@ -173,6 +174,7 @@ def list_blocklist():
 
 
 @api_bp.route("/blocklist/add", methods=["POST"])
+@jwt_required 
 def add_to_blocklist():
     """Manually block an IP."""
     data = request.get_json(silent=True) or {}
@@ -188,6 +190,7 @@ def add_to_blocklist():
 
 
 @api_bp.route("/blocklist/remove", methods=["POST"])
+@jwt_required 
 def remove_from_blocklist():
     """Unblock an IP."""
     data = request.get_json(silent=True) or {}
@@ -201,6 +204,7 @@ def remove_from_blocklist():
     return jsonify({"message": f"IP {ip} unblocked"})
 
 @api_bp.route("/logs", methods=["GET"])
+@jwt_required 
 def get_logs():
     """
     Return recent request logs from the database.
@@ -215,6 +219,7 @@ def get_logs():
 
 
 @api_bp.route("/logs/attackers", methods=["GET"])
+@jwt_required
 def top_attackers():
     """Return the IPs with the most blocked requests."""
     limit = int(request.args.get("limit", 10))
