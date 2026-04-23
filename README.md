@@ -5,36 +5,37 @@ regex rules for known patterns + ML ensemble for novel/obfuscated attacks.
 
 ## Architecture
 
+<pre>
 nightwatch/
 │
-├── core/                        # Detection Engine
-│   ├── engine.py                # Main orchestrator — ties regex + ML together
-│   ├── regex_rules.py           # 30 custom rules across 10 attack types
-│   ├── feature_extractor.py     # Extracts 30 numerical features per request
-│   └── threat_intel.py          # Rate limiter + IP blocklist + AbuseIPDB
+├── core/                        Detection Engine
+│   ├── engine.py                Main orchestrator — ties regex + ML together
+│   ├── regex_rules.py           30 custom rules across 10 attack types
+│   ├── feature_extractor.py     Extracts 30 numerical features per request
+│   └── threat_intel.py          Rate limiter + IP blocklist + AbuseIPDB
 │
-├── ml/                          # Machine Learning Layer
-│   ├── dataset_builder.py       # Builds labeled CSV from 280+ attack payloads
-│   ├── trainer.py               # Trains RF + XGBoost + LightGBM
-│   ├── models.py                # Weighted soft voting ensemble (inference)
-│   ├── drift_detector.py        # Monitors model confidence over time
-│   └── saved_models/            # Trained .joblib model files
+├── ml/                          Machine Learning Layer
+│   ├── dataset_builder.py       Builds labeled CSV from 280+ attack payloads
+│   ├── trainer.py               Trains RF + XGBoost + LightGBM
+│   ├── models.py                Weighted soft voting ensemble (inference)
+│   ├── drift_detector.py        Monitors model confidence over time
+│   └── saved_models/            Trained .joblib model files
 │
-├── api/                         # Flask API
-│   ├── routes.py                # All /api/* endpoints
-│   ├── proxy.py                 # Reverse proxy — intercepts all HTTP traffic
-│   └── auth.py                  # JWT login, token refresh, route protection
+├── api/                         Flask API
+│   ├── routes.py                All /api/* endpoints
+│   ├── proxy.py                 Reverse proxy — intercepts all HTTP traffic
+│   └── auth.py                  JWT login, token refresh, route protection
 │
-├── storage/                     # Persistence Layer
-│   └── db.py                    # SQLite tables: logs, blocklist, daily stats
+├── storage/                     Persistence Layer
+│   └── db.py                    SQLite: logs, blocklist, daily stats
 │
-├── dashboard/                   # Web Dashboard
-│   └── index.html               # Real-time UI with charts, logs, blocklist
+├── dashboard/                   Web Dashboard
+│   └── index.html               Real-time UI with charts, logs, blocklist
 │
-├── nginx/                       # Production Web Server
-│   └── nginx.conf               # Rate limiting, security headers, proxy config
+├── nginx/                       Production Web Server
+│   └── nginx.conf               Rate limiting, security headers, proxy
 │
-├── tests/                       # Test Suites (one per phase)
+├── tests/                       Test Suites (one per phase)
 │   ├── test_phase1.py
 │   ├── test_phase2.py
 │   ├── test_phase3.py
@@ -42,31 +43,37 @@ nightwatch/
 │   ├── test_phase5.py
 │   └── test_phase8.py
 │
-├── app.py                       # Flask app factory + dashboard route
-├── target_app.py                # Deliberately vulnerable test target
-├── wsgi.py                      # Gunicorn entry point
-├── Dockerfile                   # WAF container
-├── Dockerfile.target            # Target app container
-├── docker-compose.yml           # Orchestrates all 3 containers
-└── requirements.txt             # All Python dependencies
+├── app.py                       Flask app factory + dashboard route
+├── target_app.py                Deliberately vulnerable test target
+├── wsgi.py                      Gunicorn entry point
+├── Dockerfile                   WAF container
+├── Dockerfile.target            Target app container
+├── docker-compose.yml           Orchestrates all 3 containers
+└── requirements.txt             All Python dependencies
+</pre>
 
 ## Traffic Flow
 
+<pre>
 Internet
-↓
-Nginx :80          ← network rate limit, security headers, block scanners
-↓
-Gunicorn :8000     ← production WSGI server (4 workers)
-↓
+    │
+    ▼
+Nginx :80          network rate limit, security headers, block scanners
+    │
+    ▼
+Gunicorn :8000     production WSGI server (4 workers)
+    │
+    ▼
 NIGHTWATCH Engine
-├── IP check   ← rate limit + local blocklist + AbuseIPDB
-├── Regex      ← 30 rules, instant block on CRITICAL match
-├── Features   ← 30 numerical features extracted
-└── ML         ← RF + XGBoost + LightGBM weighted soft vote
-↓
-Block (403) or Forward
-↓
-Target App :5001   ← your real backend (protected)
+    ├── IP check   rate limit + local blocklist + AbuseIPDB
+    ├── Regex      30 rules, instant block on CRITICAL match
+    ├── Features   30 numerical features extracted
+    └── ML         RF + XGBoost + LightGBM weighted soft vote
+    │
+    ├── BLOCK  ──► 403 response (never reaches backend)
+    │
+    └── ALLOW  ──► Target App :5001 (your protected backend)
+</pre>
 
 ## Attack Classes Detected
 
