@@ -4,30 +4,69 @@ A production-grade WAF built from scratch with a dual-layer detection engine:
 regex rules for known patterns + ML ensemble for novel/obfuscated attacks.
 
 ## Architecture
+
 nightwatch/
-├── core/               # Detection engine
-│   ├── engine.py       # Orchestrator (regex + ML combined scoring)
-│   ├── regex_rules.py  # 30 rules across 10 attack types
-│   ├── feature_extractor.py  # 30 numerical features per request
-│   └── threat_intel.py # Rate limiting + IP blocklist + AbuseIPDB
-├── ml/                 # Machine learning
-│   ├── dataset_builder.py   # 280+ attack payloads → training CSV
-│   ├── trainer.py           # RF + XGBoost + LightGBM ensemble
-│   ├── models.py            # Weighted soft voting inference
-│   └── drift_detector.py   # Model confidence monitoring
-├── api/                # Flask API
-│   ├── routes.py       # /api/* endpoints
-│   ├── proxy.py        # Reverse proxy engine
-│   └── auth.py         # JWT authentication
-├── storage/            # Persistence
-│   └── db.py           # SQLite (request logs, blocklist, stats)
-├── dashboard/          # Web UI
-│   └── index.html      # Real-time dashboard
-├── nginx/              # Production web server
-│   └── nginx.conf
-├── Dockerfile
-├── Dockerfile.target
-└── docker-compose.yml
+│
+├── core/                        # Detection Engine
+│   ├── engine.py                # Main orchestrator — ties regex + ML together
+│   ├── regex_rules.py           # 30 custom rules across 10 attack types
+│   ├── feature_extractor.py     # Extracts 30 numerical features per request
+│   └── threat_intel.py          # Rate limiter + IP blocklist + AbuseIPDB
+│
+├── ml/                          # Machine Learning Layer
+│   ├── dataset_builder.py       # Builds labeled CSV from 280+ attack payloads
+│   ├── trainer.py               # Trains RF + XGBoost + LightGBM
+│   ├── models.py                # Weighted soft voting ensemble (inference)
+│   ├── drift_detector.py        # Monitors model confidence over time
+│   └── saved_models/            # Trained .joblib model files
+│
+├── api/                         # Flask API
+│   ├── routes.py                # All /api/* endpoints
+│   ├── proxy.py                 # Reverse proxy — intercepts all HTTP traffic
+│   └── auth.py                  # JWT login, token refresh, route protection
+│
+├── storage/                     # Persistence Layer
+│   └── db.py                    # SQLite tables: logs, blocklist, daily stats
+│
+├── dashboard/                   # Web Dashboard
+│   └── index.html               # Real-time UI with charts, logs, blocklist
+│
+├── nginx/                       # Production Web Server
+│   └── nginx.conf               # Rate limiting, security headers, proxy config
+│
+├── tests/                       # Test Suites (one per phase)
+│   ├── test_phase1.py
+│   ├── test_phase2.py
+│   ├── test_phase3.py
+│   ├── test_phase4.py
+│   ├── test_phase5.py
+│   └── test_phase8.py
+│
+├── app.py                       # Flask app factory + dashboard route
+├── target_app.py                # Deliberately vulnerable test target
+├── wsgi.py                      # Gunicorn entry point
+├── Dockerfile                   # WAF container
+├── Dockerfile.target            # Target app container
+├── docker-compose.yml           # Orchestrates all 3 containers
+└── requirements.txt             # All Python dependencies
+
+## Traffic Flow
+
+Internet
+↓
+Nginx :80          ← network rate limit, security headers, block scanners
+↓
+Gunicorn :8000     ← production WSGI server (4 workers)
+↓
+NIGHTWATCH Engine
+├── IP check   ← rate limit + local blocklist + AbuseIPDB
+├── Regex      ← 30 rules, instant block on CRITICAL match
+├── Features   ← 30 numerical features extracted
+└── ML         ← RF + XGBoost + LightGBM weighted soft vote
+↓
+Block (403) or Forward
+↓
+Target App :5001   ← your real backend (protected)
 
 ## Attack Classes Detected
 
