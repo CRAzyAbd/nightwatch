@@ -29,7 +29,7 @@ import time
 # ── Blueprint ─────────────────────────────────────────────────────────
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
-# ── Runtime stats (in-memory, Phase 4 moves these to SQLite) ─────────
+# ── Runtime stats (in-memory,  ─────────
 _stats = {
     "start_time":     time.time(),
     "total_requests": 0,

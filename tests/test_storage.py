@@ -1,6 +1,6 @@
 """
 tests/test_phase4.py
-NIGHTWATCH Phase 4 — Storage Test
+NIGHTWATCH — Storage Test
 """
 
 import sys
@@ -129,7 +129,7 @@ def run_tests():
 
 if __name__ == "__main__":
     print(f"\n{BOLD}{CYAN}{'═'*55}{RESET}")
-    print(f"{BOLD}{CYAN}  🦉 NIGHTWATCH — Phase 4 Storage Tests{RESET}")
+    print(f"{BOLD}{CYAN}  🦉 NIGHTWATCH — Storage Tests{RESET}")
     print(f"{BOLD}{CYAN}{'═'*55}{RESET}\n")
     success = run_tests()
     sys.exit(0 if success else 1)

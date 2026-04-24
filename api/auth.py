@@ -184,6 +184,6 @@ def status():
 def logout():
     """
     Logout — JWT is stateless so we just tell the client to discard the token.
-    Phase 8 enhancement: a token blacklist could be added here.
+    
     """
     return jsonify({"message": "Logged out successfully"})

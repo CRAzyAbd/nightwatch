@@ -1,6 +1,6 @@
 """
 tests/test_phase1.py
-NIGHTWATCH Phase 1 — Test Suite
+NIGHTWATCH — Engine Test Suite
 
 Run with:
     python tests/test_phase1.py
@@ -318,7 +318,7 @@ def run_test(test: dict) -> bool:
 
 def main():
     print(f"\n{BOLD}{CYAN}{'═'*65}{RESET}")
-    print(f"{BOLD}{CYAN}  🦉 NIGHTWATCH — Phase 1 Test Suite{RESET}")
+    print(f"{BOLD}{CYAN}  🦉 NIGHTWATCH — Engine Test Suite{RESET}")
     print(f"{CYAN}  Rules loaded  : {len(RULES)}{RESET}")
     print(f"{CYAN}  Attack types  : {', '.join(list_attack_types())}{RESET}")
     print(f"{CYAN}  Test cases    : {len(TESTS)}{RESET}")

@@ -200,7 +200,7 @@ def train_and_evaluate(X_train, X_test, y_train, y_test, models: dict) -> dict:
 def plot_confusion_matrices(results: dict, y_test):
     """Save confusion matrix plots for all three models."""
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-    fig.suptitle("NIGHTWATCH — Confusion Matrices (Phase 2)", fontsize=14, fontweight="bold")
+    fig.suptitle("NIGHTWATCH — Confusion Matrices (", fontsize=14, fontweight="bold")
 
     for ax, (name, res) in zip(axes, results.items()):
         cm = confusion_matrix(y_test, res["y_pred"])
@@ -240,7 +240,7 @@ def save_models(results: dict, scaler: StandardScaler, feature_names: list):
     with open(os.path.join(MODELS_DIR, "feature_names.json"), "w") as f:
         json.dump(feature_names, f, indent=2)
 
-    # Save training report (for drift detection baseline in Phase 2)
+    # Save training report (for drift detection baseline in 
     report = {
         "feature_names": feature_names,
         "models": {
@@ -282,7 +282,7 @@ def main():
     _ensure_dirs()
 
     print("=" * 60)
-    print("  NIGHTWATCH — Phase 2 Ensemble Trainer")
+    print("  NIGHTWATCH — 
     print("=" * 60)
 
     # ── Load data ─────────────────────────────────────────────────
@@ -333,7 +333,7 @@ def main():
     # ── Save ──────────────────────────────────────────────────────
     save_models(results, scaler, feature_names)
 
-    print("\n[Trainer] ✅ Phase 2 training complete.")
+    print("\n[Trainer] ✅ 
     print(f"[Trainer] Models saved in: {MODELS_DIR}")
 
 

@@ -1,6 +1,6 @@
 """
 tests/test_phase2.py
-NIGHTWATCH Phase 2 — ML Ensemble Test
+NIGHTWATCH — ML Ensemble Test
 
 Tests that:
   1. ML models load correctly
@@ -25,7 +25,7 @@ BOLD   = "\033[1m"
 RESET  = "\033[0m"
 
 # ─────────────────────────────────────────────────────────────────────
-#  Phase 2 Test Cases
+#  Test Cases
 #  Focus: obfuscated payloads that regex might miss but ML catches
 # ─────────────────────────────────────────────────────────────────────
 
@@ -160,7 +160,7 @@ def run_test(test: dict) -> bool:
 
 def main():
     print(f"\n{BOLD}{CYAN}{'═'*65}{RESET}")
-    print(f"{BOLD}{CYAN}  🦉 NIGHTWATCH — Phase 2 ML Test Suite{RESET}")
+    print(f"{BOLD}{CYAN}  🦉 NIGHTWATCH — ML Test Suite{RESET}")
     print(f"{CYAN}  ML Available : {ML_AVAILABLE}{RESET}")
 
     # Test ensemble directly

@@ -1,6 +1,6 @@
 """
 app.py
-NIGHTWATCH Flask Application Factory — Phase 6
+NIGHTWATCH Flask Application Factory — 
 Added: dashboard static file serving
 """
 

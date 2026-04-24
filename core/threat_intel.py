@@ -1,11 +1,11 @@
 """
 core/threat_intel.py
-NIGHTWATCH Threat Intelligence Module — Phase 5
+NIGHTWATCH Threat Intelligence Module — 
 
 Features:
   1. Sliding-window rate limiter (in-memory, per IP)
   2. AbuseIPDB integration (global IP reputation)
-  3. In-memory blocklist (fast path, backed by SQLite in Phase 4)
+  3. In-memory blocklist (fast path, backed by SQLite in 
 
 Flow for every request:
   check_ip(ip)
@@ -33,7 +33,7 @@ RATE_LIMIT_WINDOW   = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
 RATE_BLOCK_TTL      = int(os.getenv("RATE_LIMIT_BLOCK_TTL_MINUTES", "60"))
 
 # ── In-memory structures ──────────────────────────────────────────────
-# Fast path — SQLite is the persistent backing store (Phase 4)
+# Fast path — SQLite is the persistent backing store (
 
 # ip → deque of timestamps (sliding window)
 _rate_windows: Dict[str, deque] = defaultdict(deque)

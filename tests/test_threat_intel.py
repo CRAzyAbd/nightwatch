@@ -1,6 +1,6 @@
 """
 tests/test_phase5.py
-NIGHTWATCH Phase 5 — Rate Limiting + Threat Intel Test
+NIGHTWATCH — Threat Intel Test
 """
 
 import sys
@@ -161,7 +161,7 @@ def run_tests():
 
 if __name__ == "__main__":
     print(f"\n{BOLD}{CYAN}{'═'*55}{RESET}")
-    print(f"{BOLD}{CYAN}  🦉 NIGHTWATCH — Phase 5 Threat Intel Tests{RESET}")
+    print(f"{BOLD}{CYAN}  🦉 NIGHTWATCH — Threat Intel Tests{RESET}")
     print(f"{CYAN}  AbuseIPDB: {os.getenv('ABUSEIPDB_ENABLED','false')}{RESET}")
     print(f"{BOLD}{CYAN}{'═'*55}{RESET}\n")
     success = run_tests()

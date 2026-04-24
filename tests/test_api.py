@@ -1,6 +1,6 @@
 """
 tests/test_phase3.py
-NIGHTWATCH Phase 3 — API + Proxy Test
+NIGHTWATCH — API & Proxy Test
 
 Tests the Flask API endpoints directly (no server needed).
 Uses Flask test client — faster than spinning up a real server.
@@ -202,7 +202,7 @@ def run_tests():
 
 if __name__ == "__main__":
     print(f"\n{BOLD}{CYAN}{'═'*55}{RESET}")
-    print(f"{BOLD}{CYAN}  🦉 NIGHTWATCH — Phase 3 API Test Suite{RESET}")
+    print(f"{BOLD}{CYAN}  🦉 NIGHTWATCH — API Test Suite{RESET}")
     print(f"{BOLD}{CYAN}{'═'*55}{RESET}\n")
     success = run_tests()
     sys.exit(0 if success else 1)

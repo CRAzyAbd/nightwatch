@@ -1,6 +1,6 @@
 """
 tests/test_phase8.py
-NIGHTWATCH Phase 8 — JWT Auth Test
+NIGHTWATCH — JWT Auth Test
 """
 
 import sys
@@ -140,7 +140,7 @@ def run_tests():
 
 if __name__ == "__main__":
     print(f"\n{BOLD}{CYAN}{'═'*55}{RESET}")
-    print(f"{BOLD}{CYAN}  🦉 NIGHTWATCH — Phase 8 JWT Auth Tests{RESET}")
+    print(f"{BOLD}{CYAN}  🦉 NIGHTWATCH — JWT Auth Tests{RESET}")
     print(f"{BOLD}{CYAN}{'═'*55}{RESET}\n")
     success = run_tests()
     sys.exit(0 if success else 1)

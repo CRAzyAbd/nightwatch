@@ -1,6 +1,6 @@
 """
 core/engine.py
-NIGHTWATCH Detection Pipeline Orchestrator — Phase 2
+NIGHTWATCH Detection Pipeline Orchestrator — 
 
 Detection flow:
   Request
@@ -11,8 +11,8 @@ Detection flow:
     → Combined Risk Score
     → Verdict: BLOCK / MONITOR / ALLOW
 
-Phase 1: regex only
-Phase 2: regex + ML ensemble (this file)
+
+
 """
 
 import re

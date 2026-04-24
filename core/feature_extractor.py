@@ -2,8 +2,8 @@
 core/feature_extractor.py
 
 Converts a raw HTTP request dict into a flat dict of numerical features.
-These features feed the ML ensemble in Phase 2.
-In Phase 1 they are used for anomaly scoring (entropy + special char ratio).
+These features feed the ML ensemble in 
+In .
 
 Input format:
     {

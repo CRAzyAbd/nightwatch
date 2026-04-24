@@ -181,7 +181,7 @@ def proxy(path):
     start_time = time.time()
     ip = _get_client_ip()
 
-    # ── Step 1: IP blocklist check (Phase 5 adds AbuseIPDB here) ──
+    # ── Step 1: IP blocklist check ( ──
     ip_status = check_ip(ip)
     if ip_status["is_blocked"]:
         logger.warning(f"BLOCKED (IP blocklist) | IP={ip} | reason={ip_status['reason']}")
@@ -210,7 +210,7 @@ def proxy(path):
     result  = analyze(waf_request)
     verdict = result["verdict"]
     record_stats(result)
-    log_request(result, waf_request)   # Phase 4: persist to SQLite
+    log_request(result, waf_request)   # 
 
     elapsed = round((time.time() - start_time) * 1000, 2)
 
