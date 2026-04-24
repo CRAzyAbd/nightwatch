@@ -140,8 +140,13 @@ def run_tests():
 
     # ── Blocklist ─────────────────────────────────────────────────
     def t_blocklist():
+        # Get JWT token first
+        lr = client.post("/auth/login", json={"username": "admin", "password": "nightwatch2024"})
+        token = lr.get_json()["token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
         # Add
-        r = client.post("/api/blocklist/add", json={"ip": "9.9.9.9", "reason": "test"})
+        r = client.post("/api/blocklist/add", json={"ip": "9.9.9.9", "reason": "test"}, headers=headers)
         assert r.status_code == 200
 
         # List
@@ -151,7 +156,7 @@ def run_tests():
         assert "9.9.9.9" in ips
 
         # Remove
-        r = client.post("/api/blocklist/remove", json={"ip": "9.9.9.9"})
+        r = client.post("/api/blocklist/remove", json={"ip": "9.9.9.9"}, headers=headers)
         assert r.status_code == 200
 
     results.append(test("Blocklist add/list/remove", t_blocklist))

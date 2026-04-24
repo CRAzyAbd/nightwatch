@@ -32,22 +32,26 @@ def test(name, fn):
         return False
 
 
+def get_token():
+    r = client.post("/auth/login", json={"username": "admin", "password": "nightwatch2024"})
+    return r.get_json()["token"]
+
+
 def run_tests():
     results = []
 
-    # Send some traffic to populate the DB
     with app.app_context():
+        token   = get_token()
+        headers = {"Authorization": f"Bearer {token}"}
 
         def t_log_written():
-            # Trigger an analysis via the API
             client.post("/api/analyze", json={
                 "method": "GET",
                 "url": "/search?q=1' UNION SELECT * FROM users--",
                 "headers": {"User-Agent": "Mozilla/5.0"},
                 "body": "", "ip": "1.2.3.4"
             })
-            # Check logs endpoint
-            r = client.get("/api/logs?limit=10")
+            r = client.get("/api/logs?limit=10", headers=headers)
             assert r.status_code == 200
             data = r.get_json()
             assert "logs" in data
@@ -60,7 +64,7 @@ def run_tests():
         results.append(test("Request logged to SQLite after analysis", t_log_written))
 
         def t_filter_by_verdict():
-            r = client.get("/api/logs?verdict=BLOCK&limit=50")
+            r = client.get("/api/logs?verdict=BLOCK&limit=50", headers=headers)
             assert r.status_code == 200
             data = r.get_json()
             for log in data["logs"]:
@@ -83,7 +87,7 @@ def run_tests():
         results.append(test("Daily stats endpoint returns data", t_daily_stats))
 
         def t_top_attackers():
-            r = client.get("/api/logs/attackers")
+            r = client.get("/api/logs/attackers", headers=headers)
             assert r.status_code == 200
             data = r.get_json()
             assert "top_attackers" in data
@@ -91,26 +95,26 @@ def run_tests():
         results.append(test("Top attackers endpoint works", t_top_attackers))
 
         def t_persistent_blocklist():
-            # Block via API
-            r = client.post("/api/blocklist/add", json={"ip": "6.6.6.6", "reason": "test"})
+            r = client.post("/api/blocklist/add",
+                json={"ip": "6.6.6.6", "reason": "test"}, headers=headers)
             assert r.status_code == 200
-
-            # Check it's in DB
             from storage.db import db_check_ip
             status = db_check_ip("6.6.6.6")
             assert status["is_blocked"] == True
             assert status["reason"] == "test"
-
-            # Unblock
-            client.post("/api/blocklist/remove", json={"ip": "6.6.6.6"})
+            client.post("/api/blocklist/remove",
+                json={"ip": "6.6.6.6"}, headers=headers)
             status = db_check_ip("6.6.6.6")
             assert status["is_blocked"] == False
 
         results.append(test("IP blocklist persists to SQLite", t_persistent_blocklist))
 
         def t_db_file_exists():
-            matches = [f for f in ["nightwatch.db", "instance/nightwatch.db"] if os.path.exists(f)]
-            assert matches, "nightwatch.db file not created"
+            base = os.path.dirname(os.path.dirname(os.path.abspath("tests/test_phase4.py")))
+            for candidate in ["nightwatch.db", "instance/nightwatch.db"]:
+                if os.path.exists(os.path.join(base, candidate)):
+                    return
+            assert False, "nightwatch.db not found"
 
         results.append(test("nightwatch.db file created on disk", t_db_file_exists))
 

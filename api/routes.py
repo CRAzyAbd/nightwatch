@@ -280,3 +280,17 @@ def dashboard_data():
         "daily_stats":    get_stats_last_n_days(n=7),
         "rules_count":    len(RULES),
     })
+
+@api_bp.route("/model-report", methods=["GET"])
+def model_report():
+    """Return the training report (metrics + feature names)."""
+    import json
+    report_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "ml", "saved_models", "training_report.json"
+    )
+    try:
+        with open(report_path) as f:
+            return jsonify(json.load(f))
+    except FileNotFoundError:
+        return jsonify({"error": "Training report not found — run ml/trainer.py first"}), 404
