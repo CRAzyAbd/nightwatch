@@ -4,6 +4,30 @@ A modular, production-grade Web Application Firewall with an ML-powered detectio
 Built from scratch on Ubuntu — combines regex-based rule matching with an ensemble of
 three machine learning models to detect and block web attacks in real time.
 
+## Screenshots
+
+> Real-time WAF dashboard with an animated aurora-glass interface, dark/light themes, and live attack telemetry.
+
+### Command Deck — Overview
+![Overview dashboard, dark mode](screenshots/01-overview-dark.png)
+
+| Traffic | Threats |
+|:---:|:---:|
+| ![Traffic analytics](screenshots/03-traffic.png) | ![Threat war room with attacker radar](screenshots/04-threats.png) |
+
+| Rule Engine | ML Ensemble |
+|:---:|:---:|
+| ![Regex rule armory](screenshots/05-rules.png) | ![ML model performance gauges](screenshots/06-ml-models.png) |
+
+| Blocklist | Daywatch (Light Theme) |
+|:---:|:---:|
+| ![Active blocklist / kill list](screenshots/07-blocklist.png) | ![Overview in light mode](screenshots/02-overview-daywatch.png) |
+
+### Secure Access
+| Login | Authenticated |
+|:---:|:---:|
+| ![Login screen](screenshots/09-login.png) | ![Access granted](screenshots/08-access-granted.png) |
+
 ## What it does
 
 Every HTTP request passing through NIGHTWATCH goes through four gates:
@@ -172,7 +196,7 @@ Open http://localhost:5000/ui
 docker-compose up --build
 ```
 
-Open http://localhost/ui — default login: `admin` / `nightwatch2024`
+Open http://localhost/ui — default login: `admin` / `nightwatch2026`
 Change credentials in `.env` before deploying publicly.
 
 ## Configuration
